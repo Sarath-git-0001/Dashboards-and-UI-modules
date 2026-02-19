@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduSafeGuard — Counselor Dashboard</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* COUNSELOR-SPECIFIC STYLES */
+.risk-card {
+  background: var(--navy-mid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  transition: var(--transition);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+.risk-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+.risk-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  border-radius: 4px 0 0 4px;
+}
+.risk-card.high::before { background: var(--risk-high); }
+.risk-card.medium::before { background: var(--risk-med); }
+.risk-card.low::before { background: var(--risk-low); }
+
+.risk-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.risk-student-info h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+.risk-student-info .sub {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+}
+.risk-bars {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+.risk-bar-item {
+  flex: 1;
+}
+.risk-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  margin-bottom: 4px;
+  color: var(--text-dim);
+}
+.risk-bar-label span:last-child {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.risk-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+/* STUDENT DETAIL PANEL */
+.detail-panel {
+  position: fixed;
+  right: 0;
+  top: 64px;
+  width: 420px;
+  height: calc(100vh - 64px);
+  background: var(--navy-mid);
+  border-left: 1px solid var(--border-strong);
+  z-index: 150;
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: -8px 0 32px rgba(0,0,0,0.3);
+}
+.detail-panel.open {
+  transform: translateX(0);
+}
+.detail-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  position: sticky;
+  top: 0;
+  background: var(--navy-mid);
+  z-index: 1;
+}
+.detail-body { padding: 20px; }
+
+/* SESSION FORM */
+.session-form-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  margin-bottom: 16px;
+}
+.session-form-card h3 {
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+  color: var(--text-primary);
+}
+
+/* FILTER TABS */
+.risk-filter-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.risk-filter-tab {
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  color: var(--text-secondary);
+}
+.risk-filter-tab.all { border-color: var(--border); }
+.risk-filter-tab.all.active { background: var(--surface-2); color: var(--text-primary); }
+.risk-filter-tab.high.active { background: var(--risk-high-bg); border-color: rgba(239,68,68,0.3); color: var(--rose); }
+.risk-filter-tab.medium.active { background: var(--risk-med-bg); border-color: rgba(245,158,11,0.3); color: var(--amber); }
+
+/* CHART MINI */
+.trend-mini {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 28px;
+  margin-top: 6px;
+}
+.trend-mini-bar {
+  flex: 1;
+  border-radius: 2px 2px 0 0;
+  min-height: 2px;
+  background: rgba(56,189,248,0.4);
+}
+
+/* SCHEDULE ITEM */
+.schedule-item {
+  display: flex;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: flex-start;
+}
+.schedule-item:last-child { border-bottom: none; }
+.schedule-time {
+  width: 64px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--cyan);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.schedule-info h4 { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 3px; }
+.schedule-info p { font-size: 0.76rem; color: var(--text-dim); }
+
+/* PAGINATION */
+.pagination {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 20px;
+}
+.page-btn {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex; align-items: center; justify-content: center;
+}
+.page-btn.active { background: var(--cyan-dim); border-color: rgba(56,189,248,0.3); color: var(--cyan); }
+.page-btn:hover:not(.active) { border-color: var(--border-strong); }
+
+/* SUMMARY BOX */
+.summary-box {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 16px;
+  border: 1px solid var(--border);
+}
+.summary-box h4 {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+.summary-box .val {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="shield">🛡️</div>
+    EduSafeGuard
+  </div>
+  <div style="font-size:0.78rem; color:var(--text-dim);">
+    Counselor Portal &nbsp;·&nbsp; <span style="color:var(--violet)">CSE Department</span>
+  </div>
+  <div class="topbar-actions">
+    <div style="position:relative;display:inline-block">
+      <button class="btn-icon">🔔</button>
+      <div class="notif-dot"></div>
+    </div>
+    <div class="user-chip">
+      <div class="avatar" style="background:linear-gradient(135deg,var(--violet),var(--indigo))">P</div>
+      Dr. Priya Mehta
+    </div>
+    <a href="login.html" class="btn-logout">Logout</a>
+  </div>
+</div>
+
+<!-- STUDENT DETAIL PANEL (SLIDE-IN) -->
+<div class="detail-panel" id="detail-panel">
+  <div class="detail-header">
+    <div>
+      <div style="font-family:var(--font-display);font-size:1.05rem;font-weight:700" id="dp-name">Arjun Kumar</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:2px" id="dp-meta">STU-1001 · CSE Section A</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="risk-badge high" id="dp-risk">high</span>
+      <button class="btn-icon" onclick="closeDetail()">✕</button>
+    </div>
+  </div>
+  <div class="detail-body">
+    <!-- QUICK METRICS -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+      <div class="summary-box">
+        <h4>Attendance</h4>
+        <div class="val" style="color:var(--rose)" id="dp-att">58%</div>
+        <div style="font-size:0.74rem;color:var(--text-dim);margin-top:4px">Min required: 75%</div>
+      </div>
+      <div class="summary-box">
+        <h4>Avg Marks</h4>
+        <div class="val" style="color:var(--rose)" id="dp-marks">41%</div>
+        <div style="font-size:0.74rem;color:var(--text-dim);margin-top:4px">Threshold: 50%</div>
+      </div>
+      <div class="summary-box">
+        <h4>Risk Score</h4>
+        <div class="val" style="color:var(--rose)" id="dp-score">91/100</div>
+        <div style="font-size:0.74rem;color:var(--text-dim);margin-top:4px">ML Prediction</div>
+      </div>
+      <div class="summary-box">
+        <h4>Sessions Done</h4>
+        <div class="val" style="color:var(--cyan)">3</div>
+        <div style="font-size:0.74rem;color:var(--text-dim);margin-top:4px">This semester</div>
+      </div>
+    </div>
+
+    <!-- ATTENDANCE TREND (mini chart) -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header" style="padding:12px 14px">
+        <div class="card-title" style="font-size:0.85rem">Attendance Trend (14 Weeks)</div>
+      </div>
+      <div style="padding:14px;height:100px;position:relative">
+        <canvas id="dp-att-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- RISK HISTORY -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.06em">Risk History</div>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-date">Feb 14, 2026</div>
+          <div style="font-size:0.82rem;font-weight:600;margin-bottom:2px;color:var(--rose)">HIGH RISK Flagged</div>
+          <div class="timeline-content">ML engine: Attendance 58%, Marks 41%</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-date">Jan 28, 2026</div>
+          <div style="font-size:0.82rem;font-weight:600;margin-bottom:2px;color:var(--amber)">MEDIUM RISK</div>
+          <div class="timeline-content">Attendance dropped from 72% to 65%</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-date">Jan 10, 2026</div>
+          <div style="font-size:0.82rem;font-weight:600;margin-bottom:2px;color:var(--emerald)">LOW RISK</div>
+          <div class="timeline-content">Semester start — 92% initial attendance</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOG SESSION -->
+    <div class="session-form-card">
+      <h3>📝 Log Counseling Session</h3>
+      <div class="form-group">
+        <label class="form-label">Session Date</label>
+        <input class="form-input" type="date" value="2026-02-17">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Session Type</label>
+        <select class="form-select">
+          <option>Initial Assessment</option>
+          <option>Follow-up Session</option>
+          <option>Academic Intervention</option>
+          <option>Emotional Support</option>
+          <option>Parent Meeting</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Session Notes</label>
+        <textarea class="form-textarea" placeholder="Document key discussion points, student's concerns, action plan..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Follow-up Date</label>
+        <input class="form-input" type="date" value="2026-02-25">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Outcome</label>
+        <select class="form-select">
+          <option>Improving</option>
+          <option>No Change</option>
+          <option>Critical — Escalate</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="saveSession()">
+        💾 Save Session Record
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div class="app-shell">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-section-label">Monitoring</div>
+    <div class="sidebar-link active" onclick="showCPage('alerts')">
+      <div class="icon">🚨</div> Risk Alerts
+      <span class="badge">12</span>
+    </div>
+    <div class="sidebar-link" onclick="showCPage('students')">
+      <div class="icon">👥</div> My Students
+    </div>
+    <div class="sidebar-link" onclick="showCPage('sessions')">
+      <div class="icon">📝</div> Session Log
+    </div>
+
+    <div class="sidebar-section-label" style="margin-top:12px">Schedule</div>
+    <div class="sidebar-link" onclick="showCPage('schedule')">
+      <div class="icon">📅</div> Today's Schedule
+    </div>
+    <div class="sidebar-link" onclick="showCPage('followup')">
+      <div class="icon">🔄</div> Follow-ups
+      <span class="badge" style="background:var(--amber)">5</span>
+    </div>
+
+    <div class="sidebar-section-label" style="margin-top:12px">Reports</div>
+    <div class="sidebar-link" onclick="showCPage('report')">
+      <div class="icon">📊</div> My Report
+    </div>
+    <div class="sidebar-link" onclick="showCPage('settings')">
+      <div class="icon">⚙️</div> Settings
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <!-- PAGE: RISK ALERTS -->
+    <div id="cpage-alerts">
+      <div class="page-header">
+        <h1>Risk Alert Panel</h1>
+        <p>Students flagged by ML engine · Requires counseling intervention</p>
+      </div>
+
+      <!-- SUMMARY STATS -->
+      <div class="stats-grid" style="margin-bottom:24px">
+        <div class="stat-card rose">
+          <div class="stat-label">High Risk — My Students</div>
+          <div class="stat-value">12</div>
+          <div class="stat-sub">Immediate action needed</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-label">Medium Risk</div>
+          <div class="stat-value">18</div>
+          <div class="stat-sub">Monitor closely</div>
+        </div>
+        <div class="stat-card cyan">
+          <div class="stat-label">Sessions Pending</div>
+          <div class="stat-value">7</div>
+          <div class="stat-sub">High risk students unvisited</div>
+        </div>
+        <div class="stat-card emerald">
+          <div class="stat-label">Recovered This Month</div>
+          <div class="stat-value">4</div>
+          <div class="stat-sub">Risk level improved</div>
+        </div>
+      </div>
+
+      <!-- FILTER TABS -->
+      <div class="risk-filter-tabs">
+        <button class="risk-filter-tab all active" onclick="filterRiskCards('all', this)">All Flagged (30)</button>
+        <button class="risk-filter-tab high" onclick="filterRiskCards('high', this)">🔴 High Risk (12)</button>
+        <button class="risk-filter-tab medium" onclick="filterRiskCards('medium', this)">🟡 Medium Risk (18)</button>
+      </div>
+
+      <!-- RISK CARDS GRID -->
+      <div class="grid-auto" id="risk-cards-grid"></div>
+
+      <div class="pagination">
+        <button class="page-btn active">1</button>
+        <button class="page-btn">2</button>
+        <button class="page-btn">3</button>
+        <button class="page-btn">→</button>
+      </div>
+    </div>
+
+    <!-- PAGE: MY STUDENTS -->
+    <div id="cpage-students" style="display:none">
+      <div class="page-header">
+        <h1>My Students</h1>
+        <p>All students assigned to you for counseling</p>
+      </div>
+      <div class="filter-bar" style="margin-bottom:20px">
+        <div class="search-bar" style="flex:1;max-width:300px">
+          <span>🔍</span>
+          <input type="text" placeholder="Search students...">
+        </div>
+        <select class="form-select" style="width:auto">
+          <option>All Sections</option>
+          <option>Section A</option>
+          <option>Section B</option>
+          <option>Section C</option>
+        </select>
+        <select class="form-select" style="width:auto">
+          <option>All Risk Levels</option>
+          <option>High Risk</option>
+          <option>Medium Risk</option>
+          <option>Low Risk</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Section</th>
+              <th>Attendance</th>
+              <th>Marks</th>
+              <th>Risk</th>
+              <th>Last Session</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="my-students-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PAGE: SESSION LOG -->
+    <div id="cpage-sessions" style="display:none">
+      <div class="page-header">
+        <h1>Session Log</h1>
+        <p>All recorded counseling sessions</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Student</th>
+              <th>Type</th>
+              <th>Outcome</th>
+              <th>Follow-up</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Feb 14, 2026</td>
+              <td><div style="font-weight:600">Arjun Kumar</div><div style="font-size:0.74rem;color:var(--text-dim)">STU-1001</div></td>
+              <td><span class="chip">Academic Intervention</span></td>
+              <td><span class="risk-badge high">Critical</span></td>
+              <td>Feb 18, 2026</td>
+              <td style="font-size:0.8rem;color:var(--text-secondary);max-width:200px">Student agreed to attend all classes. Shared peer study group contact.</td>
+            </tr>
+            <tr>
+              <td>Feb 12, 2026</td>
+              <td><div style="font-weight:600">Priya Sharma</div><div style="font-size:0.74rem;color:var(--text-dim)">STU-1002</div></td>
+              <td><span class="chip">Follow-up Session</span></td>
+              <td><span class="risk-badge medium">Improving</span></td>
+              <td>Feb 20, 2026</td>
+              <td style="font-size:0.8rem;color:var(--text-secondary);max-width:200px">Attendance improved from 58% to 65%. Continue monitoring.</td>
+            </tr>
+            <tr>
+              <td>Feb 10, 2026</td>
+              <td><div style="font-weight:600">Karthik Raj</div><div style="font-size:0.74rem;color:var(--text-dim)">STU-1003</div></td>
+              <td><span class="chip">Initial Assessment</span></td>
+              <td><span class="risk-badge high">Critical</span></td>
+              <td>Feb 17, 2026</td>
+              <td style="font-size:0.8rem;color:var(--text-secondary);max-width:200px">Parent meeting scheduled. Serious absenteeism issue flagged.</td>
+            </tr>
+            <tr>
+              <td>Feb 5, 2026</td>
+              <td><div style="font-weight:600">Meena Patel</div><div style="font-size:0.74rem;color:var(--text-dim)">STU-1004</div></td>
+              <td><span class="chip">Emotional Support</span></td>
+              <td><span class="risk-badge medium">Improving</span></td>
+              <td>Feb 22, 2026</td>
+              <td style="font-size:0.8rem;color:var(--text-secondary);max-width:200px">Student shared personal challenges. Referred to college support services.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PAGE: TODAY'S SCHEDULE -->
+    <div id="cpage-schedule" style="display:none">
+      <div class="page-header">
+        <h1>Today's Schedule</h1>
+        <p>Tuesday, February 17, 2026 · 4 sessions planned</p>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Today's Sessions</div></div>
+          <div class="card-body" style="padding:0 20px">
+            <div class="schedule-item">
+              <div class="schedule-time">9:30 AM</div>
+              <div class="schedule-info">
+                <h4>Arjun Kumar</h4>
+                <p>STU-1001 · Academic Intervention · Room 204<br><span class="risk-badge high" style="font-size:0.68rem">HIGH RISK</span></p>
+              </div>
+            </div>
+            <div class="schedule-item">
+              <div class="schedule-time">11:00 AM</div>
+              <div class="schedule-info">
+                <h4>Karthik Raj</h4>
+                <p>STU-1003 · Follow-up Session · Room 204<br><span class="risk-badge high" style="font-size:0.68rem">HIGH RISK</span></p>
+              </div>
+            </div>
+            <div class="schedule-item">
+              <div class="schedule-time">2:00 PM</div>
+              <div class="schedule-info">
+                <h4>Rahul Singh</h4>
+                <p>STU-1005 · Initial Assessment · Room 204<br><span class="risk-badge medium" style="font-size:0.68rem">MEDIUM RISK</span></p>
+              </div>
+            </div>
+            <div class="schedule-item">
+              <div class="schedule-time">3:30 PM</div>
+              <div class="schedule-info">
+                <h4>Divya Reddy</h4>
+                <p>STU-1006 · Parent Meeting · Room 204<br><span class="risk-badge high" style="font-size:0.68rem">HIGH RISK</span></p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Pending Follow-ups</div></div>
+          <div class="card-body" style="padding:0 20px">
+            <div class="schedule-item">
+              <div class="schedule-time" style="color:var(--amber)">OVERDUE</div>
+              <div class="schedule-info">
+                <h4>Suresh Babu</h4>
+                <p>Follow-up was due Feb 15, 2026</p>
+              </div>
+            </div>
+            <div class="schedule-item">
+              <div class="schedule-time" style="color:var(--rose)">OVERDUE</div>
+              <div class="schedule-info">
+                <h4>Anand Rao</h4>
+                <p>Follow-up was due Feb 14, 2026</p>
+              </div>
+            </div>
+            <div class="schedule-item">
+              <div class="schedule-time">Feb 18</div>
+              <div class="schedule-info"><h4>Arjun Kumar</h4><p>Upcoming follow-up</p></div>
+            </div>
+            <div class="schedule-item">
+              <div class="schedule-time">Feb 20</div>
+              <div class="schedule-info"><h4>Priya Sharma</h4><p>Upcoming follow-up</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: MY REPORT -->
+    <div id="cpage-report" style="display:none">
+      <div class="page-header">
+        <h1>My Report</h1>
+        <p>Counseling effectiveness and student outcome overview</p>
+      </div>
+      <div class="stats-grid" style="margin-bottom:24px">
+        <div class="stat-card cyan"><div class="stat-label">Total Students</div><div class="stat-value">62</div><div class="stat-sub">Assigned to me</div></div>
+        <div class="stat-card emerald"><div class="stat-label">Sessions This Month</div><div class="stat-value">24</div><div class="stat-sub">Feb 2026</div></div>
+        <div class="stat-card indigo"><div class="stat-label">Recovery Rate</div><div class="stat-value">67<span style="font-size:1rem">%</span></div><div class="stat-sub">Risk improved after session</div></div>
+        <div class="stat-card amber"><div class="stat-label">Avg. Sessions/Student</div><div class="stat-value">3.2</div><div class="stat-sub">For at-risk students</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="chart-card">
+          <div class="card-title" style="margin-bottom:14px">Sessions per Week</div>
+          <div style="height:200px;position:relative"><canvas id="sessions-bar"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="card-title" style="margin-bottom:14px">Outcome Distribution</div>
+          <div style="height:200px;position:relative"><canvas id="outcome-donut"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// -- DATA --
+const riskStudents = [
+  { id: 'STU-1001', name: 'Arjun Kumar', branch: 'CSE', section: 'A', att: 58, marks: 41, risk: 'high', score: 91, lastSession: 'Feb 5' },
+  { id: 'STU-1002', name: 'Priya Sharma', branch: 'CSE', section: 'B', att: 62, marks: 44, risk: 'high', score: 87, lastSession: 'Feb 12' },
+  { id: 'STU-1003', name: 'Karthik Raj', branch: 'ECE', section: 'A', att: 55, marks: 38, risk: 'high', score: 93, lastSession: 'Feb 10' },
+  { id: 'STU-1004', name: 'Meena Patel', branch: 'MECH', section: 'C', att: 60, marks: 42, risk: 'high', score: 85, lastSession: 'Feb 5' },
+  { id: 'STU-1005', name: 'Rahul Singh', branch: 'CSE', section: 'A', att: 63, marks: 39, risk: 'high', score: 88, lastSession: 'Feb 8' },
+  { id: 'STU-1006', name: 'Divya Reddy', branch: 'ECE', section: 'B', att: 59, marks: 46, risk: 'high', score: 82, lastSession: 'Feb 3' },
+  { id: 'STU-1007', name: 'Anand Rao', branch: 'CSE', section: 'C', att: 67, marks: 48, risk: 'medium', score: 68, lastSession: 'Feb 1' },
+  { id: 'STU-1008', name: 'Sneha Iyer', branch: 'MECH', section: 'A', att: 71, marks: 52, risk: 'medium', score: 54, lastSession: 'Feb 7' },
+  { id: 'STU-1009', name: 'Vijay Nair', branch: 'ECE', section: 'C', att: 68, marks: 49, risk: 'medium', score: 57, lastSession: 'Feb 6' },
+  { id: 'STU-1011', name: 'Suresh Babu', branch: 'MECH', section: 'B', att: 64, marks: 40, risk: 'high', score: 89, lastSession: 'Jan 28' },
+];
+
+function getReason(s) {
+  if (s.att < 60 && s.marks < 40) return '📉 Both low — critical';
+  if (s.att < 60) return '📅 Attendance very low';
+  if (s.marks < 40) return '📋 Marks critically low';
+  return '⚠️ Borderline performance';
+}
+
+// -- RISK CARDS --
+function buildRiskCards(filter = 'all') {
+  const grid = document.getElementById('risk-cards-grid');
+  let data = filter === 'all' ? riskStudents : riskStudents.filter(s => s.risk === filter);
+  grid.innerHTML = data.map(s => `
+    <div class="risk-card ${s.risk}" onclick="openDetail('${s.id}')">
+      <div class="risk-card-top">
+        <div class="risk-student-info">
+          <h4>${s.name}</h4>
+          <div class="sub">${s.id} · ${s.branch} Sec ${s.section}</div>
+        </div>
+        <span class="risk-badge ${s.risk}">${s.risk}</span>
+      </div>
+      <div style="font-size:0.78rem;color:${s.risk === 'high' ? 'var(--rose)' : 'var(--amber)'};margin-bottom:8px">${getReason(s)}</div>
+      <div class="risk-bars">
+        <div class="risk-bar-item">
+          <div class="risk-bar-label"><span>Attendance</span><span>${s.att}%</span></div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill ${s.att < 65 ? 'rose' : 'amber'}" style="width:${s.att}%"></div></div>
+        </div>
+        <div class="risk-bar-item">
+          <div class="risk-bar-label"><span>Marks</span><span>${s.marks}%</span></div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill ${s.marks < 45 ? 'rose' : 'amber'}" style="width:${s.marks}%"></div></div>
+        </div>
+      </div>
+      <div class="risk-card-actions">
+        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();scheduleSession('${s.name}')">📅 Schedule</button>
+        <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();sendAlert('${s.name}')">🔔 Alert</button>
+        <span style="margin-left:auto;font-size:0.72rem;color:var(--text-dim);align-self:center">Last: ${s.lastSession}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterRiskCards(level, btn) {
+  document.querySelectorAll('.risk-filter-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  buildRiskCards(level);
+}
+
+// -- MY STUDENTS TABLE --
+function buildMyStudentsTable() {
+  const tbody = document.getElementById('my-students-table');
+  if (!tbody) return;
+  tbody.innerHTML = riskStudents.map(s => `
+    <tr>
+      <td><div style="font-weight:600">${s.name}</div><div style="font-size:0.74rem;color:var(--text-dim)">${s.id}</div></td>
+      <td><span class="chip">${s.branch} ${s.section}</span></td>
+      <td style="color:${s.att < 70 ? 'var(--rose)' : 'var(--emerald)'};font-weight:600">${s.att}%</td>
+      <td style="color:${s.marks < 50 ? 'var(--rose)' : 'var(--emerald)'};font-weight:600">${s.marks}%</td>
+      <td><span class="risk-badge ${s.risk}">${s.risk}</span></td>
+      <td style="font-size:0.8rem;color:var(--text-secondary)">${s.lastSession}</td>
+      <td><button class="btn btn-sm btn-secondary" onclick="openDetail('${s.id}')">View →</button></td>
+    </tr>
+  `).join('');
+}
+
+// -- DETAIL PANEL --
+function openDetail(id) {
+  const s = riskStudents.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('dp-name').textContent = s.name;
+  document.getElementById('dp-meta').textContent = `${s.id} · ${s.branch} Section ${s.section}`;
+  document.getElementById('dp-risk').textContent = s.risk;
+  document.getElementById('dp-risk').className = `risk-badge ${s.risk}`;
+  document.getElementById('dp-att').textContent = s.att + '%';
+  document.getElementById('dp-marks').textContent = s.marks + '%';
+  document.getElementById('dp-score').textContent = s.score + '/100';
+  document.getElementById('detail-panel').classList.add('open');
+
+  setTimeout(() => {
+    const ctx = document.getElementById('dp-att-chart');
+    if (!ctx) return;
+    if (window._dpChart) window._dpChart.destroy();
+    const attData = [92, 85, 78, 72, 68, 65, 62, 60, 58, s.att-3, s.att-2, s.att-1, s.att, s.att];
+    window._dpChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: Array.from({length:14}, (_,i) => `W${i+1}`),
+        datasets: [{
+          data: attData,
+          borderColor: s.risk === 'high' ? '#f87171' : '#fbbf24',
+          backgroundColor: s.risk === 'high' ? 'rgba(248,113,113,0.08)' : 'rgba(251,191,36,0.08)',
+          fill: true, tension: 0.4, pointRadius: 2, borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          x: { display: false },
+          y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 40, max: 100, ticks: { font: { size: 9 } } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+  }, 100);
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+}
+
+function saveSession() {
+  const btn = event.target;
+  btn.textContent = '✅ Session Saved!';
+  btn.style.background = 'linear-gradient(135deg, var(--emerald), var(--teal))';
+  setTimeout(() => {
+    btn.textContent = '💾 Save Session Record';
+    btn.style.background = '';
+    closeDetail();
+  }, 2000);
+}
+
+function scheduleSession(name) { alert(`Session scheduled for ${name}`); }
+function sendAlert(name) { alert(`Alert sent to ${name}`); }
+
+// -- PAGE NAVIGATION --
+const cpages = ['alerts','students','sessions','schedule','followup','report','settings'];
+function showCPage(name) {
+  cpages.forEach(p => {
+    const el = document.getElementById(`cpage-${p}`);
+    if (el) el.style.display = 'none';
+  });
+  const target = document.getElementById(`cpage-${name}`);
+  if (target) target.style.display = 'block';
+  document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+  if (name === 'students') buildMyStudentsTable();
+  if (name === 'report') initReportCharts();
+}
+
+// -- REPORT CHARTS --
+let _reportChartsDone = false;
+function initReportCharts() {
+  if (_reportChartsDone) return;
+  _reportChartsDone = true;
+  Chart.defaults.color = '#94a3b8';
+  Chart.defaults.font = { family: 'DM Sans', size: 11 };
+
+  new Chart(document.getElementById('sessions-bar'), {
+    type: 'bar',
+    data: {
+      labels: ['W1','W2','W3','W4','W5','W6','W7','W8','W9','W10','W11','W12','W13','W14'],
+      datasets: [{ label: 'Sessions', data: [2,3,2,4,5,3,4,6,5,4,6,7,5,8], backgroundColor: 'rgba(129,140,248,0.7)', borderRadius: 4, borderSkipped: false }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  new Chart(document.getElementById('outcome-donut'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Improved', 'No Change', 'Critical'],
+      datasets: [{ data: [16, 5, 3], backgroundColor: ['rgba(16,185,129,0.8)','rgba(245,158,11,0.8)','rgba(239,68,68,0.8)'], borderWidth: 2, borderColor: ['rgba(16,185,129,0.2)','rgba(245,158,11,0.2)','rgba(239,68,68,0.2)'], hoverOffset: 5 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+    }
+  });
+}
+
+// INIT
+buildRiskCards();
+</script>
+</body>
+</html>
