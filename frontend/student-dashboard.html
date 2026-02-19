@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduSafeGuard — Student Dashboard</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* STUDENT-SPECIFIC STYLES */
+.student-profile-card {
+  background: linear-gradient(135deg, rgba(56,189,248,0.08), rgba(129,140,248,0.06));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xl);
+  padding: 28px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  position: relative;
+  overflow: hidden;
+}
+.student-profile-card::before {
+  content: '';
+  position: absolute;
+  right: -60px; top: -60px;
+  width: 240px; height: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56,189,248,0.07), transparent);
+  pointer-events: none;
+}
+
+.profile-avatar {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--cyan), var(--indigo));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  font-family: var(--font-display);
+  color: var(--navy);
+  flex-shrink: 0;
+  box-shadow: 0 0 24px var(--cyan-glow);
+}
+
+.profile-info h2 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+.profile-meta {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.profile-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.profile-meta-item .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+}
+
+.profile-stats {
+  margin-left: auto;
+  display: flex;
+  gap: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.profile-stat-val {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.profile-stat-lbl {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 4px;
+}
+
+/* WARNING BANNERS */
+.warning-banner {
+  padding: 14px 18px;
+  border-radius: var(--radius);
+  border: 1px solid;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 12px;
+  animation: slideIn 0.4s ease;
+}
+.warning-banner.critical {
+  background: linear-gradient(90deg, rgba(239,68,68,0.12), rgba(239,68,68,0.06));
+  border-color: rgba(239,68,68,0.25);
+}
+.warning-banner.caution {
+  background: linear-gradient(90deg, rgba(245,158,11,0.1), rgba(245,158,11,0.05));
+  border-color: rgba(245,158,11,0.25);
+}
+.warning-banner .warn-icon { font-size: 22px; flex-shrink: 0; }
+.warning-banner h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
+.warning-banner.critical h3 { color: var(--rose); }
+.warning-banner.caution h3 { color: var(--amber); }
+.warning-banner p { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5; }
+
+/* SUBJECT MARKS */
+.subject-card {
+  background: var(--navy-mid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  transition: var(--transition);
+}
+.subject-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+.subject-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.subject-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.subject-code {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.subject-score {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  text-align: right;
+}
+.subject-score .total {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-family: var(--font-body);
+}
+
+/* ATTENDANCE LEGEND */
+.cal-legend {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.cal-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.cal-legend-dot {
+  width: 14px; height: 14px;
+  border-radius: 4px;
+}
+
+/* CIRCULAR PROGRESS */
+.circular-progress {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.circular-progress svg {
+  transform: rotate(-90deg);
+}
+.circular-progress .value {
+  position: absolute;
+  text-align: center;
+}
+.circular-progress .pct {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.circular-progress .lbl {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* COUNSELING SESSION */
+.session-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.session-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.session-date {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+.session-note {
+  font-size: 0.83rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="shield">🛡️</div>
+    EduSafeGuard
+  </div>
+  <div style="font-size:0.78rem; color:var(--text-dim);">
+    Student Portal &nbsp;·&nbsp; <span style="color:var(--cyan)">CSE Section A</span>
+  </div>
+  <div class="topbar-actions">
+    <div class="user-chip">
+      <div class="avatar">A</div>
+      Arjun Kumar · STU-1001
+    </div>
+    <a href="login.html" class="btn-logout">Logout</a>
+  </div>
+</div>
+
+<div class="app-shell">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-section-label">My Dashboard</div>
+    <div class="sidebar-link active" onclick="showTab('overview')">
+      <div class="icon">📊</div> Overview
+    </div>
+    <div class="sidebar-link" onclick="showTab('attendance')">
+      <div class="icon">📅</div> Attendance
+    </div>
+    <div class="sidebar-link" onclick="showTab('marks')">
+      <div class="icon">📋</div> My Marks
+    </div>
+    <div class="sidebar-link" onclick="showTab('alerts')">
+      <div class="icon">🔔</div> Alerts
+      <span class="badge">2</span>
+    </div>
+    <div class="sidebar-link" onclick="showTab('counseling')">
+      <div class="icon">🧑‍🏫</div> Counseling
+    </div>
+
+    <div class="sidebar-section-label" style="margin-top:20px">Info</div>
+    <div class="sidebar-link" onclick="showTab('profile')">
+      <div class="icon">👤</div> My Profile
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <!-- OVERVIEW TAB -->
+    <div id="tab-overview">
+      <!-- STUDENT PROFILE CARD -->
+      <div class="student-profile-card">
+        <div class="profile-avatar">AK</div>
+        <div class="profile-info">
+          <h2>Arjun Kumar</h2>
+          <div style="margin-top:4px">
+            <span class="risk-badge high">HIGH RISK</span>
+          </div>
+          <div class="profile-meta">
+            <div class="profile-meta-item"><div class="dot"></div>Roll: STU-1001-2025</div>
+            <div class="profile-meta-item"><div class="dot" style="background:var(--violet)"></div>CSE · Section A</div>
+            <div class="profile-meta-item"><div class="dot" style="background:var(--teal)"></div>III Year · Sem 6</div>
+          </div>
+        </div>
+        <div class="profile-stats">
+          <div>
+            <div class="profile-stat-val" style="color:var(--rose)">58%</div>
+            <div class="profile-stat-lbl">Attendance</div>
+          </div>
+          <div>
+            <div class="profile-stat-val" style="color:var(--rose)">41%</div>
+            <div class="profile-stat-lbl">Avg Marks</div>
+          </div>
+          <div>
+            <div class="profile-stat-val" style="color:var(--rose)">91</div>
+            <div class="profile-stat-lbl">Risk Score</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- WARNING BANNERS -->
+      <div class="warning-banner critical">
+        <div class="warn-icon">🚨</div>
+        <div>
+          <h3>Critical: Attendance Below Required Level</h3>
+          <p>Your attendance is 58% — 17% below the minimum required 75%. You risk being barred from exams. Please attend classes regularly. Your counselor has been notified.</p>
+        </div>
+      </div>
+      <div class="warning-banner caution">
+        <div class="warn-icon">⚠️</div>
+        <div>
+          <h3>Warning: Marks Below Passing Threshold</h3>
+          <p>Your average marks (41%) are below the 50% threshold. You may need to appear for supplementary exams. Contact your counselor immediately.</p>
+        </div>
+      </div>
+
+      <div class="glow-sep"></div>
+
+      <!-- QUICK STATS -->
+      <div class="stats-grid" style="margin-bottom:24px">
+        <div class="stat-card rose">
+          <div class="stat-label">Attendance This Week</div>
+          <div class="stat-value">60<span style="font-size:1rem">%</span></div>
+          <div class="stat-sub">3 present / 2 absent</div>
+        </div>
+        <div class="stat-card rose">
+          <div class="stat-label">Overall Attendance</div>
+          <div class="stat-value">58<span style="font-size:1rem">%</span></div>
+          <div class="stat-sub">Need 75% minimum</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-label">Best Subject</div>
+          <div class="stat-value">58<span style="font-size:1rem">%</span></div>
+          <div class="stat-sub">Data Structures (CS301)</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-label">Weakest Subject</div>
+          <div class="stat-value">29<span style="font-size:1rem">%</span></div>
+          <div class="stat-sub">Computer Networks</div>
+        </div>
+      </div>
+
+      <!-- MINI ATTENDANCE CHART + MARKS TREND -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Weekly Attendance Trend</div>
+            <span class="chip rose">Below Target</span>
+          </div>
+          <div class="card-body">
+            <div style="height:160px;position:relative">
+              <canvas id="myAttLine"></canvas>
+            </div>
+            <div style="margin-top:12px; display:flex; justify-content:space-between; font-size:0.78rem; color:var(--text-dim)">
+              <span>Required: <span style="color:var(--amber)">75%</span></span>
+              <span>Current: <span style="color:var(--rose)">58%</span></span>
+              <span>Gap: <span style="color:var(--rose)">−17%</span></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Marks Trend</div>
+            <span class="chip rose">Below Threshold</span>
+          </div>
+          <div class="card-body">
+            <div style="height:160px;position:relative">
+              <canvas id="myMarksLine"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ATTENDANCE TAB -->
+    <div id="tab-attendance" style="display:none">
+      <div class="page-header">
+        <h1>Attendance Calendar</h1>
+        <p>February 2026 · Blue = Present, Red = Absent</p>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:24px">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Attendance Summary</div>
+          </div>
+          <div class="card-body" style="display:flex; align-items:center; gap:28px">
+            <!-- Circular Progress -->
+            <div class="circular-progress">
+              <svg width="140" height="140" viewBox="0 0 140 140">
+                <circle cx="70" cy="70" r="54" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="12"/>
+                <circle cx="70" cy="70" r="54" fill="none" stroke="#ef4444" stroke-width="12"
+                  stroke-dasharray="339.3" stroke-dashoffset="142.5" stroke-linecap="round"/>
+              </svg>
+              <div class="value">
+                <div class="pct" style="color:var(--rose)">58%</div>
+                <div class="lbl">Attendance</div>
+              </div>
+            </div>
+            <div style="flex:1">
+              <div style="margin-bottom:14px">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.82rem">
+                  <span style="color:var(--text-secondary)">Present Days</span>
+                  <span style="color:var(--cyan); font-weight:600">42</span>
+                </div>
+                <div class="progress-bar-wrap">
+                  <div class="progress-bar-fill cyan" style="width:58%"></div>
+                </div>
+              </div>
+              <div style="margin-bottom:14px">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.82rem">
+                  <span style="color:var(--text-secondary)">Absent Days</span>
+                  <span style="color:var(--rose); font-weight:600">30</span>
+                </div>
+                <div class="progress-bar-wrap">
+                  <div class="progress-bar-fill rose" style="width:42%"></div>
+                </div>
+              </div>
+              <div style="padding:12px; background:var(--risk-high-bg); border-radius:var(--radius); border:1px solid rgba(239,68,68,0.2); font-size:0.8rem; color:var(--text-secondary)">
+                ⚠️ You need <strong style="color:var(--amber)">30 more present days</strong> to reach 75% attendance.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Subject-wise Attendance</div>
+          </div>
+          <div class="card-body">
+            <div id="subject-att-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CALENDAR -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📅 February 2026</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn-icon">← Prev</button>
+            <button class="btn-icon">Next →</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="cal-legend">
+            <div class="cal-legend-item"><div class="cal-legend-dot" style="background:rgba(56,189,248,0.3);border:1px solid rgba(56,189,248,0.4)"></div>Present</div>
+            <div class="cal-legend-item"><div class="cal-legend-dot" style="background:rgba(239,68,68,0.25);border:1px solid rgba(239,68,68,0.35)"></div>Absent</div>
+            <div class="cal-legend-item"><div class="cal-legend-dot" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08)"></div>Weekend / Holiday</div>
+          </div>
+          <div class="calendar-grid">
+            <div class="cal-day-label">Sun</div>
+            <div class="cal-day-label">Mon</div>
+            <div class="cal-day-label">Tue</div>
+            <div class="cal-day-label">Wed</div>
+            <div class="cal-day-label">Thu</div>
+            <div class="cal-day-label">Fri</div>
+            <div class="cal-day-label">Sat</div>
+          </div>
+          <div class="calendar-grid" id="cal-grid" style="margin-top:4px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MARKS TAB -->
+    <div id="tab-marks" style="display:none">
+      <div class="page-header">
+        <h1>My Marks</h1>
+        <p>Mid-semester examination results · 2025–26</p>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" onclick="switchExam(this,'midsem')">Mid Semester</button>
+        <button class="tab" onclick="switchExam(this,'unit1')">Unit Test 1</button>
+        <button class="tab" onclick="switchExam(this,'internal')">Internal Assessment</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:28px" id="subjects-grid"></div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Marks Radar</div>
+          </div>
+          <div class="card-body" style="height:250px;position:relative">
+            <canvas id="marksRadar"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Performance Summary</div></div>
+          <div class="card-body">
+            <div style="margin-bottom:14px">
+              <div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:5px">
+                <span style="color:var(--text-secondary)">Class Average</span>
+                <span style="color:var(--cyan);font-weight:600">61%</span>
+              </div>
+              <div class="progress-bar-wrap"><div class="progress-bar-fill cyan" style="width:61%"></div></div>
+            </div>
+            <div style="margin-bottom:14px">
+              <div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:5px">
+                <span style="color:var(--text-secondary)">Your Average</span>
+                <span style="color:var(--rose);font-weight:600">41%</span>
+              </div>
+              <div class="progress-bar-wrap"><div class="progress-bar-fill rose" style="width:41%"></div></div>
+            </div>
+            <div style="padding:12px;background:var(--risk-high-bg);border-radius:var(--radius);border:1px solid rgba(239,68,68,0.2);font-size:0.8rem;color:var(--text-secondary)">
+              📉 You are <strong style="color:var(--rose)">20% below</strong> the class average. Focus on CS302, CS304 immediately.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALERTS TAB -->
+    <div id="tab-alerts" style="display:none">
+      <div class="page-header">
+        <h1>My Alerts</h1>
+        <p>System-generated warnings and counselor notifications</p>
+      </div>
+      <div id="alerts-list">
+        <div class="warning-banner critical">
+          <div class="warn-icon">🚨</div>
+          <div>
+            <h3>CRITICAL: Attendance 58% — Risk of Exam Barred</h3>
+            <p>Sent: Feb 14, 2026 &nbsp;·&nbsp; Source: ML Risk Engine<br>Action Required: Attend minimum 4 classes per week for next 6 weeks to reach safe attendance.</p>
+          </div>
+        </div>
+        <div class="warning-banner critical" style="margin-top:12px">
+          <div class="warn-icon">📋</div>
+          <div>
+            <h3>LOW MARKS: Average 41% — Below Passing Threshold</h3>
+            <p>Sent: Feb 12, 2026 &nbsp;·&nbsp; Source: Mid-Sem Results<br>Action Required: Your counselor has scheduled a session on Feb 18. Attendance mandatory.</p>
+          </div>
+        </div>
+        <div class="warning-banner caution" style="margin-top:12px">
+          <div class="warn-icon">🗓️</div>
+          <div>
+            <h3>Counseling Session Scheduled</h3>
+            <p>Sent: Feb 13, 2026 &nbsp;·&nbsp; Source: Counselor Dr. Priya Mehta<br>Session Date: Feb 18, 2026 at 10:30 AM in Room 204. Please be present.</p>
+          </div>
+        </div>
+        <div class="alert-item info" style="margin-top:12px">
+          <div class="alert-icon">ℹ️</div>
+          <div class="alert-body">
+            <h4>Attendance data updated for Week 14</h4>
+            <p>Feb 14, 2026 · Admin uploaded attendance records. Your profile has been updated.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COUNSELING TAB -->
+    <div id="tab-counseling" style="display:none">
+      <div class="page-header">
+        <h1>Counseling History</h1>
+        <p>Sessions with your assigned counselor</p>
+      </div>
+      <div class="grid-2">
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header"><div class="card-title">Assigned Counselor</div></div>
+            <div class="card-body" style="display:flex;align-items:center;gap:16px">
+              <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--violet),var(--indigo));display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;font-family:var(--font-display);color:white;flex-shrink:0">PM</div>
+              <div>
+                <div style="font-weight:700;font-size:0.95rem">Dr. Priya Mehta</div>
+                <div style="font-size:0.8rem;color:var(--text-dim);margin-top:3px">CSE Department Counselor</div>
+                <div style="margin-top:8px;display:flex;gap:8px">
+                  <span class="chip cyan">Active</span>
+                  <span class="chip">Room 204</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><div class="card-title">Upcoming Session</div></div>
+            <div class="card-body">
+              <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:var(--radius);padding:16px">
+                <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:700;color:var(--cyan)">Feb 18, 2026</div>
+                <div style="font-size:0.85rem;color:var(--text-secondary);margin-top:4px">Tuesday · 10:30 AM</div>
+                <div style="font-size:0.82rem;color:var(--text-dim);margin-top:8px">📍 Room 204, CSE Block</div>
+                <div style="font-size:0.82rem;color:var(--text-dim);margin-top:4px">🎯 Focus: Attendance improvement plan + study strategy</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Session History</div></div>
+            <div class="card-body" style="padding:0">
+              <div style="padding:0 16px">
+                <div class="timeline" style="padding-top:20px">
+                  <div class="timeline-item">
+                    <div class="timeline-date">Feb 5, 2026 · 11:00 AM</div>
+                    <div style="font-size:0.85rem;font-weight:600;color:var(--text-primary);margin-bottom:4px">Initial Risk Assessment</div>
+                    <div class="timeline-content">Discussed attendance drop pattern. Student cited personal issues at home. Plan: Weekly check-in calls, shared study schedule.</div>
+                  </div>
+                  <div class="timeline-item">
+                    <div class="timeline-date">Jan 22, 2026 · 2:30 PM</div>
+                    <div style="font-size:0.85rem;font-weight:600;color:var(--text-primary);margin-bottom:4px">Mid-Sem Prep Session</div>
+                    <div class="timeline-content">Reviewed study habits. Suggested peer study group. Attendance still concerning — formal warning issued.</div>
+                  </div>
+                  <div class="timeline-item">
+                    <div class="timeline-date">Jan 10, 2026 · 10:00 AM</div>
+                    <div style="font-size:0.85rem;font-weight:600;color:var(--text-primary);margin-bottom:4px">Semester Start Check-in</div>
+                    <div class="timeline-content">Routine semester start assessment. Goals set: maintain 80% attendance, participate in labs actively.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROFILE TAB -->
+    <div id="tab-profile" style="display:none">
+      <div class="page-header">
+        <h1>My Profile</h1>
+        <p>Personal academic information (read-only)</p>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Personal Details</div></div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border)">
+                <span style="font-size:0.78rem;color:var(--text-dim)">Full Name</span>
+                <span style="font-size:0.9rem;font-weight:600">Arjun Kumar</span>
+              </div>
+              <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border)">
+                <span style="font-size:0.78rem;color:var(--text-dim)">Roll Number</span>
+                <span style="font-family:monospace;font-size:0.88rem;background:var(--surface);padding:3px 8px;border-radius:5px">STU-1001-2025</span>
+              </div>
+              <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border)">
+                <span style="font-size:0.78rem;color:var(--text-dim)">Branch</span>
+                <span class="chip cyan">CSE</span>
+              </div>
+              <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border)">
+                <span style="font-size:0.78rem;color:var(--text-dim)">Section</span>
+                <span style="font-size:0.9rem;font-weight:600">Section A</span>
+              </div>
+              <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center">
+                <span style="font-size:0.78rem;color:var(--text-dim)">Year / Sem</span>
+                <span style="font-size:0.9rem;font-weight:600">III Year · Semester 6</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Academic Standing</div></div>
+          <div class="card-body">
+            <div style="text-align:center;margin-bottom:20px">
+              <div style="font-family:var(--font-display);font-size:3rem;font-weight:800;color:var(--rose)">HIGH</div>
+              <div style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-dim)">Current Risk Level</div>
+            </div>
+            <div style="font-size:0.82rem;color:var(--text-secondary);line-height:1.7;padding:12px;background:var(--surface);border-radius:var(--radius)">
+              ❌ You cannot view other students' data.<br>
+              ❌ You cannot upload or modify any records.<br>
+              ✅ You can view your own dashboard and alerts.<br>
+              ✅ Contact your counselor for assistance.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// -- TAB NAVIGATION --
+const tabs = ['overview','attendance','marks','alerts','counseling','profile'];
+function showTab(name) {
+  tabs.forEach(t => {
+    const el = document.getElementById(`tab-${t}`);
+    if (el) el.style.display = 'none';
+  });
+  document.getElementById(`tab-${name}`).style.display = 'block';
+  document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+}
+
+// -- CALENDAR --
+const feb2026 = {
+  year: 2026, month: 1,
+  startDay: 0, // Sunday
+  days: 28,
+  attendance: {
+    2:'P',3:'P',4:'P',5:'P',6:'P',
+    9:'A',10:'A',11:'P',12:'P',13:'P',
+    16:'P',17:'P',18:'A',19:'A',20:'P',
+    23:'A',24:'A',25:'A',26:'P',27:'P'
+  }
+};
+
+function buildCalendar() {
+  const grid = document.getElementById('cal-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  for (let i = 0; i < feb2026.startDay; i++) {
+    const d = document.createElement('div');
+    d.className = 'cal-day empty';
+    grid.appendChild(d);
+  }
+  for (let d = 1; d <= feb2026.days; d++) {
+    const cell = document.createElement('div');
+    const att = feb2026.attendance[d];
+    const isWeekend = (d + feb2026.startDay - 1) % 7 === 0 || (d + feb2026.startDay - 1) % 7 === 6;
+    cell.className = 'cal-day ' + (isWeekend ? 'weekend' : att === 'P' ? 'present' : att === 'A' ? 'absent' : 'empty');
+    cell.textContent = d;
+    if (att) cell.title = att === 'P' ? 'Present' : 'Absent';
+    grid.appendChild(cell);
+  }
+}
+
+// -- SUBJECT-WISE ATTENDANCE --
+const subjectAtt = [
+  { name: 'Data Structures', code: 'CS301', pct: 65, total: 40, present: 26 },
+  { name: 'DBMS', code: 'CS302', pct: 55, total: 38, present: 21 },
+  { name: 'Operating Systems', code: 'CS303', pct: 60, total: 42, present: 25 },
+  { name: 'Computer Networks', code: 'CS304', pct: 50, total: 36, present: 18 },
+  { name: 'Software Engineering', code: 'CS305', pct: 62, total: 32, present: 20 },
+];
+
+function buildSubjectAtt() {
+  const el = document.getElementById('subject-att-list');
+  if (!el) return;
+  el.innerHTML = subjectAtt.map(s => `
+    <div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <div>
+          <span style="font-size:0.85rem;font-weight:500">${s.name}</span>
+          <span style="font-size:0.72rem;color:var(--text-dim);margin-left:6px">${s.code}</span>
+        </div>
+        <span style="font-size:0.85rem;font-weight:700;color:${s.pct < 70 ? 'var(--rose)' : 'var(--emerald)'}">${s.pct}%</span>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill ${s.pct < 70 ? 'rose' : 'emerald'}" style="width:${s.pct}%"></div>
+      </div>
+      <div style="font-size:0.72rem;color:var(--text-dim);margin-top:3px">${s.present}/${s.total} classes</div>
+    </div>
+  `).join('');
+}
+
+// -- SUBJECTS MARKS --
+const subjects = [
+  { name: 'Data Structures', code: 'CS301', marks: 58, max: 100 },
+  { name: 'Database Mgmt', code: 'CS302', marks: 40, max: 100 },
+  { name: 'Operating Systems', code: 'CS303', marks: 45, max: 100 },
+  { name: 'Computer Networks', code: 'CS304', marks: 29, max: 100 },
+  { name: 'Software Engg.', code: 'CS305', marks: 35, max: 100 },
+];
+
+function buildSubjectsGrid() {
+  const grid = document.getElementById('subjects-grid');
+  if (!grid) return;
+  grid.innerHTML = subjects.map(s => {
+    const pct = Math.round((s.marks / s.max) * 100);
+    const color = pct < 40 ? 'rose' : pct < 60 ? 'amber' : 'cyan';
+    const scoreColor = pct < 40 ? 'var(--rose)' : pct < 60 ? 'var(--amber)' : 'var(--cyan)';
+    return `
+      <div class="subject-card">
+        <div class="subject-header">
+          <div>
+            <div class="subject-name">${s.name}</div>
+            <div class="subject-code">${s.code}</div>
+          </div>
+          <div class="subject-score" style="color:${scoreColor}">
+            ${s.marks}<span class="total">/${s.max}</span>
+          </div>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill ${color}" style="width:${pct}%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.75rem;color:var(--text-dim)">
+          <span>${pct}%</span>
+          <span class="risk-badge ${pct < 40 ? 'high' : pct < 60 ? 'medium' : 'low'}" style="font-size:0.66rem">${pct < 40 ? 'Fail Zone' : pct < 60 ? 'Borderline' : 'Pass'}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function switchExam(btn, exam) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// -- CHARTS --
+function initCharts() {
+  Chart.defaults.color = '#94a3b8';
+  Chart.defaults.font = { family: 'DM Sans', size: 11 };
+
+  const attData = [92, 85, 78, 72, 68, 63, 61, 59, 57, 58, 56, 58, 60, 58];
+  new Chart(document.getElementById('myAttLine'), {
+    type: 'line',
+    data: {
+      labels: Array.from({length:14}, (_,i) => `W${i+1}`),
+      datasets: [
+        {
+          label: 'Attendance %',
+          data: attData,
+          borderColor: '#f87171',
+          backgroundColor: 'rgba(248,113,113,0.08)',
+          fill: true, tension: 0.4, pointRadius: 3, borderWidth: 2, pointBackgroundColor: '#f87171',
+        },
+        {
+          label: 'Required 75%',
+          data: Array(14).fill(75),
+          borderColor: 'rgba(251,191,36,0.5)',
+          borderDash: [5,4],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, min: 40, max: 100 }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  const marksData = [68, 65, 62, 58, 50, 48, 45, 43, 41];
+  new Chart(document.getElementById('myMarksLine'), {
+    type: 'line',
+    data: {
+      labels: ['UT1','UT2','UT3','UT4','UT5','IA1','IA2','IA3','Mid'],
+      datasets: [{
+        label: 'Marks %',
+        data: marksData,
+        borderColor: '#fbbf24',
+        backgroundColor: 'rgba(251,191,36,0.08)',
+        fill: true, tension: 0.4, pointRadius: 3, borderWidth: 2, pointBackgroundColor: '#fbbf24',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, min: 20, max: 100 }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  new Chart(document.getElementById('marksRadar'), {
+    type: 'radar',
+    data: {
+      labels: subjects.map(s => s.code),
+      datasets: [
+        {
+          label: 'Your Marks %',
+          data: subjects.map(s => Math.round(s.marks / s.max * 100)),
+          borderColor: '#f87171',
+          backgroundColor: 'rgba(248,113,113,0.12)',
+          borderWidth: 2,
+          pointBackgroundColor: '#f87171',
+        },
+        {
+          label: 'Class Average',
+          data: [68, 62, 65, 60, 58],
+          borderColor: '#38bdf8',
+          backgroundColor: 'rgba(56,189,248,0.08)',
+          borderWidth: 1.5,
+          pointBackgroundColor: '#38bdf8',
+          borderDash: [4,3],
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        r: {
+          min: 0, max: 100,
+          grid: { color: 'rgba(255,255,255,0.06)' },
+          angleLines: { color: 'rgba(255,255,255,0.06)' },
+          ticks: { backdropColor: 'transparent', font: { size: 9 } }
+        }
+      },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+    }
+  });
+}
+
+// INIT
+buildCalendar();
+buildSubjectAtt();
+buildSubjectsGrid();
+initCharts();
+</script>
+</body>
+</html>
